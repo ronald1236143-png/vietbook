@@ -138,7 +138,6 @@
         else if (typeof v === 'boolean') { if (v) el.setAttribute(k, ''); }
         else el.setAttribute(k, v);
       });
-      children = children.flat(Infinity);
       children.forEach(child => {
         if (child === null || child === undefined) return;
         el.appendChild(typeof child === 'string' || typeof child === 'number' ? document.createTextNode(String(child)) : child);
@@ -147,7 +146,7 @@
     }
 
     const $$ = (sel, el = document) => Array.from(el.querySelectorAll(sel));
-    const escapeHtml = (unsafe) => typeof unsafe === 'string' ? unsafe.replace(/[&<>"']/g, m => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'}[m])) : '';
+    const escapeHtml = (unsafe) => typeof unsafe === 'string' ? unsafe.replace(/[&<<>"']/g, m => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'}[m])) : '';
 
     const CONFIG = {
       STORAGE_KEY: 'viet_reader_mobile_v3',
@@ -191,29 +190,26 @@
       subscribe(fn) { this.listeners.add(fn); return () => this.listeners.delete(fn); }
     }
 
-    // 优化：采用设备原生 Web Speech API 绕过服务端域名限制
+    // 还原 Google TTS 真人发音，并添加安全沙箱控制属性规避 HTTPS 跨域拦截
     class TTSEngine {
-      constructor() {
-        this.synth = window.speechSynthesis;
+      constructor() { 
+        this.audio = new Audio(); 
+        // 关键：允许音频跨域请求匿名凭证
+        this.audio.crossOrigin = "anonymous";
       }
       speak(text, rate = 1.0) {
         return new Promise((resolve) => {
-          if (!this.synth) return resolve();
-          this.synth.cancel(); // 停止当前正在播放的声音
-
-          // 清理可能导致断句的奇怪符号
           let cleanText = text.replace(/[.,:!?，。：！？()]/g, " ").replace(/\s+/g, " ").trim() || text.trim();
-          const utterance = new SpeechSynthesisUtterance(cleanText);
-          utterance.lang = 'vi-VN';
-          utterance.rate = rate;
-
-          utterance.onend = utterance.onerror = () => resolve();
-          this.synth.speak(utterance);
+          this.audio.pause();
+          this.audio.playbackRate = rate;
+          // 使用 translate.google.com 的特定客户端参数绕过浏览器同源策略
+          this.audio.src = `https://translate.google.com/translate_tts?ie=UTF-8&tl=vi&client=tw-ob&q=${encodeURIComponent(cleanText)}`;
+          this.audio.onended = this.audio.onerror = resolve;
+          this.audio.oncanplay = () => this.audio.play().catch(resolve);
+          this.audio.load();
         });
       }
-      stop() {
-        if (this.synth) this.synth.cancel();
-      }
+      stop() { this.audio.pause(); this.audio.src = ''; }
     }
 
     class SpeechQueue {
@@ -316,7 +312,7 @@ The output MUST strictly match this JSON structure:
   ]
 }`;
 
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${this.apiKey}`;
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${this.apiKey}`;
         
         const res = await fetch(url, {
           method: "POST",
@@ -467,11 +463,10 @@ The output MUST strictly match this JSON structure:
             case 'set-theme': this.store.set({ theme: val }); StorageManager.save({ theme: val }); break;
             case 'set-speed': this.store.set({ playbackSpeed: parseFloat(val) }); StorageManager.save({ playbackSpeed: parseFloat(val) }); break;
             case 'set-font': this.store.set({ fontSize: s.fontSize + parseInt(val) }); StorageManager.save({ fontSize: s.fontSize + parseInt(val) }); break;
-            case 'save-api': {
+            case 'save-api': 
               const key = document.getElementById('api-key-input').value.trim();
               this.store.set({ apiKey: key }); this.api.apiKey = key; StorageManager.save({ apiKey: key });
               this.closeDrawer(); this.showToast('配置已更新'); break;
-            }
 
             case 'flip-card': this.store.set({ isCardFlipped: !s.isCardFlipped }); break;
             case 'next-card': if(s.currentCardIndex < s.savedWords.length - 1) this.store.set({ currentCardIndex: s.currentCardIndex + 1, isCardFlipped: false }); break;
@@ -775,8 +770,8 @@ The output MUST strictly match this JSON structure:
       }
     }
 
-    // 直接启动应用（DOM 已就绪）
-    window.app = new App();
+    // 修复：必须在全局 document 上绑定监听 DOMContentLoaded 事件
+    document.addEventListener('DOMContentLoaded', () => window.app = new App());
   </script>
 </body>
 </html>
