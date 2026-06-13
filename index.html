@@ -138,6 +138,7 @@
         else if (typeof v === 'boolean') { if (v) el.setAttribute(k, ''); }
         else el.setAttribute(k, v);
       });
+      children = children.flat(Infinity);
       children.forEach(child => {
         if (child === null || child === undefined) return;
         el.appendChild(typeof child === 'string' || typeof child === 'number' ? document.createTextNode(String(child)) : child);
@@ -146,7 +147,7 @@
     }
 
     const $$ = (sel, el = document) => Array.from(el.querySelectorAll(sel));
-    const escapeHtml = (unsafe) => typeof unsafe === 'string' ? unsafe.replace(/[&<<>"']/g, m => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'}[m])) : '';
+    const escapeHtml = (unsafe) => typeof unsafe === 'string' ? unsafe.replace(/[&<>"']/g, m => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'}[m])) : '';
 
     const CONFIG = {
       STORAGE_KEY: 'viet_reader_mobile_v3',
@@ -315,7 +316,7 @@ The output MUST strictly match this JSON structure:
   ]
 }`;
 
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${this.apiKey}`;
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${this.apiKey}`;
         
         const res = await fetch(url, {
           method: "POST",
@@ -466,10 +467,11 @@ The output MUST strictly match this JSON structure:
             case 'set-theme': this.store.set({ theme: val }); StorageManager.save({ theme: val }); break;
             case 'set-speed': this.store.set({ playbackSpeed: parseFloat(val) }); StorageManager.save({ playbackSpeed: parseFloat(val) }); break;
             case 'set-font': this.store.set({ fontSize: s.fontSize + parseInt(val) }); StorageManager.save({ fontSize: s.fontSize + parseInt(val) }); break;
-            case 'save-api': 
+            case 'save-api': {
               const key = document.getElementById('api-key-input').value.trim();
               this.store.set({ apiKey: key }); this.api.apiKey = key; StorageManager.save({ apiKey: key });
               this.closeDrawer(); this.showToast('配置已更新'); break;
+            }
 
             case 'flip-card': this.store.set({ isCardFlipped: !s.isCardFlipped }); break;
             case 'next-card': if(s.currentCardIndex < s.savedWords.length - 1) this.store.set({ currentCardIndex: s.currentCardIndex + 1, isCardFlipped: false }); break;
@@ -773,7 +775,8 @@ The output MUST strictly match this JSON structure:
       }
     }
 
-    document.getElementById('app').addEventListener('DOMContentLoaded', () => window.app = new App());
+    // 直接启动应用（DOM 已就绪）
+    window.app = new App();
   </script>
 </body>
 </html>
