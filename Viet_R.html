@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Tiếng Việt Đọc Tập</title>
+  
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#235234">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root, [data-theme="cream"] {
+      --bg-base: #FCFAF8;
+      --bg-surface: #F5F2E9;
+      --bg-glass: rgba(252, 250, 248, 0.75);
+      --text-primary: #2C2825;
+      --text-secondary: #8C8273;
+      --accent: #235234;
+      --accent-light: #E8EFEA;
+      --border-subtle: rgba(44, 40, 37, 0.06);
+      --shadow-float: 0 12px 40px -8px rgba(35, 82, 52, 0.12);
+    }
+    [data-theme="dark"] {
+      --bg-base: #111315;
+      --bg-surface: #1C1E21;
+      --bg-glass: rgba(17, 19, 21, 0.75);
+      --text-primary: #E6E4E1;
+      --text-secondary: #8B8D91;
+      --accent: #469363;
+      --accent-light: rgba(70, 147, 99, 0.15);
+      --border-subtle: rgba(255, 255, 255, 0.06);
+      --shadow-float: 0 12px 40px -8px rgba(0, 0, 0, 0.6);
+    }
+    [data-theme="clean"] {
+      --bg-base: #FFFFFF;
+      --bg-surface: #F2F4F7;
+      --bg-glass: rgba(255, 255, 255, 0.75);
+      --text-primary: #1D232A;
+      --text-secondary: #6B7280;
+      --accent: #0F172A;
+      --accent-light: #F1F5F9;
+      --border-subtle: rgba(0, 0, 0, 0.05);
+      --shadow-float: 0 12px 40px -8px rgba(0, 0, 0, 0.08);
+    }
+
+    body {
+      background-color: var(--bg-base);
+      color: var(--text-primary);
+      -webkit-tap-highlight-color: transparent;
+      overscroll-behavior-y: none;
+    }
+
+    @keyframes slide-up-sheet {
+      0% { transform: translateY(100%); }
+      100% { transform: translateY(0); }
+    }
+    .animate-sheet { animation: slide-up-sheet 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
+
+    @keyframes fade-in-scale {
+      0% { opacity: 0; transform: scale(0.98) translateY(10px); }
+      100% { opacity: 1; transform: scale(1) translateY(0); }
+    }
+    .animate-entry { animation: fade-in-scale 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
+
+    @keyframes flip-card {
+      0% { transform: perspective(1200px) rotateX(90deg) scale(0.95); opacity: 0; }
+      100% { transform: perspective(1200px) rotateX(0deg) scale(1); opacity: 1; }
+    }
+    .animate-flip { animation: flip-card 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
+
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+    .glass-bar {
+      background: var(--bg-glass);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-top: 1px solid var(--border-subtle);
+    }
+    
+    .surface-card {
+      background: var(--bg-surface);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.4), 0 2px 8px rgba(0,0,0,0.02);
+      border: 1px solid var(--border-subtle);
+    }
+    
+    [data-theme="dark"] .surface-card {
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 2px 8px rgba(0,0,0,0.2);
+    }
+
+    .btn-press { transition: transform 0.15s ease, opacity 0.15s ease; }
+    .btn-press:active { transform: scale(0.94); opacity: 0.8; }
+    .btn-press:disabled { opacity: 0.4; pointer-events: none; }
+
+    .vn-text {
+      font-family: 'Georgia', 'Times New Roman', serif;
+      line-height: 2.2;
+      letter-spacing: 0.02em;
+    }
+    .chunk-active {
+      background-color: var(--accent-light);
+      color: var(--accent);
+      border-bottom: 2px solid var(--accent);
+      border-radius: 6px;
+      padding: 2px 4px;
+      margin: 0 -2px;
+      font-weight: 700;
+      box-shadow: 0 2px 8px var(--border-subtle);
+    }
+  </style>
+</head>
+<body class="h-screen flex flex-col font-sans transition-colors duration-500 overflow-hidden text-[15px]">
+  <div id="app" class="flex flex-col h-full w-full relative"></div>
+
+  <script>
+    // 异步安全注册 Service Worker
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js')
+          .then(reg => console.log('PWA Service Worker 注册成功'))
+          .catch(err => console.error('PWA Service Worker 注册失败:', err));
+      });
+    }
+
+    function h(tag, attrs = {}, children = []) {
+      const el = document.createElement(tag);
+      Object.entries(attrs).forEach(([k, v]) => {
+        if (v === undefined || v === null) return;
+        if (k === 'className') el.className = v;
+        else if (k === 'textContent') el.textContent = v;
+        else if (k === 'innerHTML') el.innerHTML = v;
+        else if (k === 'style' && typeof v === 'object') Object.entries(v).forEach(([p, val]) => el.style[p] = val);
+        else if (k.startsWith('on') && typeof v === 'function') el.addEventListener(k.slice(2).toLowerCase(), v);
+        else if (k === 'dataset') Object.assign(el.dataset, v);
+        else if (typeof v === 'boolean') { if (v) el.setAttribute(k, ''); }
+        else el.setAttribute(k, v);
+      });
+      children.forEach(child => {
+        if (child === null || child === undefined) return;
+        el.appendChild(typeof child === 'string' || typeof child === 'number' ? document.createTextNode(String(child)) : child);
+      });
+      return el;
+    }
+
+    const $$ = (sel, el = document) => Array.from(el.querySelectorAll(sel));
+    const escapeHtml = (unsafe) => typeof unsafe === 'string' ? unsafe.replace(/[&<<>"']/g, m => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'}[m])) : '';
+
+    const CONFIG = {
+      STORAGE_KEY: 'viet_reader_mobile_v3',
+      STORAGE_VERSION: 3,
+      RANDOM_CATEGORIES: ["河内摩托车出行", "西贡咖啡馆文化", "越南街头砍价", "春节传统习俗", "越南职场社交", "制作越式法棍"],
+      SUGGESTED_TOPICS: [
+        { emoji: "☕", label: "点咖啡" }, { emoji: "🛵", label: "打摩的" },
+        { emoji: "🍜", label: "吃河粉" }, { emoji: "🤝", label: "打招呼" }
+      ],
+      SEED_ARTICLE: {
+        title: "Văn Hóa Cà Phê (咖啡文化)",
+        difficultyLabel: "Level 2 (核心日常)",
+        paragraphs: [{
+          sentences: [{
+            chunks: [
+              { vietnamese: "Người Việt Nam", chinese: "越南人", grammar: "名词短语。Người (人) + Việt Nam (越南)。", pronunciationTip: "Người 为玄声(huyền)，低平降调。" },
+              { vietnamese: "rất thích", chinese: "非常喜欢", grammar: "副词 rất (非常) + 动词 thích (喜欢)。", pronunciationTip: "rất 发音短促，thích 为锐声(sắc)。" },
+              { vietnamese: "uống", chinese: "喝", grammar: "及物动词。", pronunciationTip: "锐声(sắc)，发音高昂。" },
+              { vietnamese: "cà phê.", chinese: "咖啡。", grammar: "外来词音译。", pronunciationTip: "平声，发音平稳拖长。" }
+            ]
+          }]
+        }]
+      }
+    };
+
+    const StorageManager = {
+      load() { try { const raw = localStorage.getItem(CONFIG.STORAGE_KEY); if (!raw) return {}; const data = JSON.parse(raw); return data._version === CONFIG.STORAGE_VERSION ? (delete data._version, data) : {}; } catch (e) { return {}; } },
+      save(p) { try { localStorage.setItem(CONFIG.STORAGE_KEY, JSON.stringify({ ...this.load(), ...p, _version: CONFIG.STORAGE_VERSION })); } catch (e) {} }
+    };
+
+    class Store {
+      constructor(init) { this.state = { ...init }; this.listeners = new Set(); }
+      get() { return this.state; }
+      set(p) {
+        const next = { ...this.state, ...p };
+        if (Object.keys(p).some(k => this.state[k] !== next[k])) {
+          this.state = next;
+          this.listeners.forEach(fn => fn(this.state));
+        }
+      }
+      subscribe(fn) { this.listeners.add(fn); return () => this.listeners.delete(fn); }
+    }
+
+    class TTSEngine {
+      constructor() { this.audio = new Audio(); }
+      speak(text, rate = 1.0) {
+        return new Promise((resolve) => {
+          let cleanText = text.replace(/[.,:!?，。：！？()]/g, " ").replace(/\s+/g, " ").trim() || text.trim();
+          this.audio.pause();
+          this.audio.playbackRate = rate;
+          this.audio.src = `https://translate.google.com/translate_tts?ie=UTF-8&tl=vi&client=tw-ob&q=${encodeURIComponent(cleanText)}`;
+          this.audio.onended = this.audio.onerror = resolve;
+          this.audio.oncanplay = () => this.audio.play().catch(resolve);
+          this.audio.load();
+        });
+      }
+      stop() { this.audio.pause(); this.audio.src = ''; }
+    }
+
+    class SpeechQueue {
+      constructor(tts) { this.tts = tts; this.playing = false; this.onStateChange = null; }
+      async start(sentences, speed) {
+        this.stop(); this.playing = true;
+        for (let i = 0; i < sentences.length && this.playing; i++) {
+          this.onStateChange?.({ type: 'sentence', index: i });
+          await this.tts.speak(sentences[i], speed);
+        }
+        if (this.playing) { this.stop(); this.onStateChange?.({ type: 'finish' }); }
+      }
+      stop() { this.playing = false; this.tts.stop(); }
+    }
+
+    class ArticleAPI {
+      constructor(key) { 
+        this.apiKey = key; 
+        this.ctrl = null;
+        this.lastRequestTime = 0;
+        this.minInterval = 6000; 
+      }
+
+      async generate(topic, difficulty, onRetry) {
+        const now = Date.now();
+        const elapsed = now - this.lastRequestTime;
+        if (elapsed < this.minInterval) {
+          const wait = Math.ceil((this.minInterval - elapsed) / 1000);
+          const err = new Error(`请求太频繁，请等待 ${wait} 秒后再试`);
+          err.status = 429;
+          err.isClientRateLimit = true;
+          throw err;
+        }
+
+        const MAX_RETRIES = 3;
+        let lastError = null;
+
+        for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+          if (this.ctrl) { this.ctrl.abort(); this.ctrl = null; }
+
+          try {
+            this.lastRequestTime = Date.now(); 
+            return await this._tryOnce(topic, difficulty);
+          } catch (err) {
+            lastError = err;
+            
+            const isRateLimit = err.status === 429 || /rate limit|quota exceeded|too many requests/i.test(err.message);
+            const isOverloaded = err.status === 503 || err.status === 529 || /high demand|overloaded/i.test(err.message);
+            
+            if (!isRateLimit && !isOverloaded) break;
+            if (attempt >= MAX_RETRIES - 1) break;
+
+            const baseDelay = isRateLimit ? 8000 : 4000;
+            const delay = baseDelay * Math.pow(2, attempt); 
+            
+            onRetry?.(attempt + 1, MAX_RETRIES, delay, isRateLimit ? '速率限制' : '服务器过载');
+            await this._sleep(delay);
+          }
+        }
+        throw lastError;
+      }
+
+      async _tryOnce(topic, difficulty) {
+        this.ctrl = new AbortController();
+
+        const prompt = `You are a strict JSON generator for a Vietnamese learning app.
+Create an engaging Vietnamese reading article about "${topic}" at Difficulty Level ${difficulty}.
+Keep it short: 1-2 paragraphs, max 6 sentences total. 
+
+CRITICAL OUTPUT INSTRUCTIONS:
+1. Return ONLY the raw JSON object. Do NOT wrap the response in markdown code blocks (e.g., do NOT use \`\`\`json ... \`\`\`).
+2. Do not include any introductory or concluding text outside the JSON.
+3. Grammar and pronunciation tips MUST be in Simplified Chinese.
+
+The output MUST strictly match this JSON structure:
+{
+  "title": "Văn Hóa Cà Phê (咖啡文化)",
+  "difficultyLabel": "Level ${difficulty}",
+  "paragraphs": [
+    {
+      "sentences": [
+        {
+          "chunks": [
+            {
+              "vietnamese": "Người Việt Nam",
+              "chinese": "越南人",
+              "grammar": "名词短语。Người (人) + Việt Nam (越南)。",
+              "pronunciationTip": "Người 为玄声(huyền)，低平降调。"
+            },
+            {
+              "vietnamese": "rất thích cà phê.",
+              "chinese": "非常喜欢咖啡。",
+              "grammar": "副词 rất (非常) + 动词 thích (喜欢) + 名词 cà phê (咖啡)。",
+              "pronunciationTip": "thích 为锐声，发音高昂。"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}`;
+
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${this.apiKey}`;
+        
+        const res = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: { responseMimeType: "application/json" }
+          }),
+          signal: this.ctrl.signal
+        });
+
+        if (!res.ok) {
+          const errText = await res.text().catch(() => '');
+          const err = new Error(`API 错误 ${res.status}: ${errText.slice(0, 120)}`);
+          err.status = res.status;
+          throw err;
+        }
+
+        const data = await res.json();
+        let text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!text || typeof text !== 'string') {
+          throw new Error("API 返回内容为空");
+        }
+
+        let clean = text.trim();
+        if (clean.startsWith("```")) {
+          clean = clean.replace(/^```json\s*/i, "").replace(/```$/, "").trim();
+        }
+        if (!clean) throw new Error("API 返回空内容");
+
+        let parsed;
+        try { parsed = JSON.parse(clean); } catch (e) { throw new Error(`JSON 解析失败`); }
+
+        if (!parsed || typeof parsed !== 'object') throw new Error("API 返回非对象数据");
+        if (!parsed.title || !Array.isArray(parsed.paragraphs)) throw new Error("API 返回数据结构异常");
+
+        parsed.paragraphs = (parsed.paragraphs || []).map(p => ({
+          sentences: ((p && p.sentences) || []).map(s => ({
+            chunks: ((s && s.chunks) || []).map(c => ({
+              vietnamese: String(c?.vietnamese || ''),
+              chinese: String(c?.chinese || ''),
+              grammar: String(c?.grammar || ''),
+              pronunciationTip: String(c?.pronunciationTip || '')
+            })).filter(c => c.vietnamese)
+          })).filter(s => s.chunks.length > 0)
+        })).filter(p => p.sentences.length > 0);
+
+        if (parsed.paragraphs.length === 0) throw new Error("API 返回的文章无有效段落");
+        return parsed;
+      }
+
+      _sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+    }
+
+    // ---------------- 应用逻辑与组件 ----------------
+    class App {
+      constructor() {
+        this.store = new Store({
+          difficulty: 2, loading: false, article: CONFIG.SEED_ARTICLE,
+          selectedChunk: null, savedWords: [], isFlashcardMode: false, currentCardIndex: 0, isCardFlipped: false,
+          theme: 'cream', fontSize: 20, playbackSpeed: 1.0, currentSentenceIndex: -1,
+          drawerState: null,
+          apiKey: '', topicInput: '',
+          ...StorageManager.load()
+        });
+        this.tts = new TTSEngine();
+        this.queue = new SpeechQueue(this.tts);
+        this.api = new ArticleAPI(this.store.get().apiKey);
+        this.els = {};
+        this.chunkMap = new Map();
+        
+        this.init();
+      }
+
+      init() {
+        this.buildDOM();
+        this.bindEvents();
+        this.queue.onStateChange = (e) => {
+          if (e.type === 'sentence') this.store.set({ currentSentenceIndex: e.index });
+          if (e.type === 'finish') { this.store.set({ currentSentenceIndex: -1 }); this.showToast('连播完成'); }
+        };
+        this.store.subscribe(s => this.safeRender(s));
+        this.safeRender(this.store.get());
+      }
+
+      safeRender(state) {
+        try { this.render(state); } 
+        catch (err) { console.error("Render error (recovered):", err); this.showToast("界面渲染异常，请尝试刷新"); }
+      }
+
+      buildDOM() {
+        const root = document.getElementById('app');
+        root.innerHTML = '';
+        document.body.dataset.theme = this.store.get().theme;
+
+        this.els.header = h('header', { className: 'flex justify-between items-center px-5 pt-12 pb-3 shrink-0 z-10 glass-bar fixed top-0 w-full' }, [
+          h('div', { className: 'flex items-center gap-2' }, [
+            h('div', { className: 'w-8 h-8 rounded-full bg-[#E32636] flex items-center justify-center text-yellow-400 font-serif font-black text-sm shadow-md' }, ['V']),
+            h('h1', { className: 'font-serif font-bold tracking-tight text-lg' }, ['Tiếng Việt', h('span', { className: 'ml-1.5 text-[10px] bg-[var(--accent)] text-white px-1.5 py-0.5 rounded uppercase tracking-wider font-sans opacity-90' }, ['Pro'])])
+          ]),
+          this.els.flashcardBtn = h('button', { className: 'btn-press text-sm font-bold flex items-center gap-1.5 px-3 py-1.5 rounded-full surface-card', 'data-action': 'toggle-flashcard' })
+        ]);
+
+        this.els.main = h('main', { className: 'flex-1 overflow-y-auto no-scrollbar pt-28 pb-32 px-5 w-full relative z-0' });
+        this.els.readerArea = h('div', { className: 'w-full max-w-lg mx-auto flex flex-col gap-8 animate-entry' });
+        this.els.flashcardArea = h('div', { className: 'w-full h-full max-w-lg mx-auto flex flex-col justify-center animate-entry hidden' });
+        
+        this.els.main.append(this.els.readerArea, this.els.flashcardArea);
+
+        this.els.bottomBar = h('div', { className: 'fixed bottom-8 left-0 right-0 px-5 z-20 pointer-events-none flex justify-center' }, [
+          h('div', { className: 'glass-bar rounded-full px-4 py-3 flex items-center gap-6 shadow-float pointer-events-auto border border-[var(--border-subtle)]' }, [
+            this.els.btnSettings = h('button', { className: 'btn-press text-2xl opacity-80', 'data-action': 'open-settings' }, ['⚙️']),
+            this.els.btnPlay = h('button', { className: 'btn-press w-12 h-12 rounded-full flex items-center justify-center text-white shadow-md', style: { backgroundColor: 'var(--accent)' }, 'data-action': 'toggle-play' }, ['🔊']),
+            this.els.btnGenerate = h('button', { className: 'btn-press text-2xl opacity-80', 'data-action': 'open-generate' }, ['✨'])
+          ])
+        ]);
+
+        this.els.overlay = h('div', { className: 'fixed inset-0 bg-black/40 backdrop-blur-sm z-40 hidden transition-opacity duration-300 opacity-0', 'data-action': 'close-drawer' });
+        this.els.drawerContent = h('div', { className: 'fixed bottom-0 left-0 right-0 rounded-t-[32px] p-6 pb-10 z-50 transform translate-y-full transition-transform duration-300 max-h-[85vh] overflow-y-auto no-scrollbar', style: { backgroundColor: 'var(--bg-base)' } });
+        
+        this.els.toast = h('div', { className: 'fixed top-24 left-1/2 -translate-x-1/2 z-50 bg-[var(--text-primary)] text-[var(--bg-base)] px-5 py-2.5 rounded-full text-sm font-bold shadow-2xl transition-all duration-300 transform -translate-y-10 opacity-0 pointer-events-none flex items-center gap-2' });
+
+        root.append(this.els.header, this.els.main, this.els.bottomBar, this.els.overlay, this.els.drawerContent, this.els.toast);
+      }
+
+      bindEvents() {
+        document.getElementById('app').addEventListener('click', (e) => {
+          const btn = e.target.closest('[data-action]');
+          if (!btn) return;
+          const { action, val } = btn.dataset;
+
+          const s = this.store.get();
+          switch (action) {
+            case 'toggle-flashcard': this.store.set({ isFlashcardMode: !s.isFlashcardMode, drawerState: null }); break;
+            case 'open-settings': this.store.set({ drawerState: 'settings' }); break;
+            case 'open-generate': this.store.set({ drawerState: 'generate' }); break;
+            case 'close-drawer': this.closeDrawer(); break;
+            case 'toggle-play': this.togglePlay(); break;
+            case 'select-chunk': this.store.set({ selectedChunk: this.chunkMap.get(val), drawerState: 'chunk' }); break;
+            case 'play-text': this.tts.speak(val, s.playbackSpeed); break;
+            case 'toggle-save': this.toggleSave(val); break;
+            
+            case 'set-topic': document.getElementById('topic-input').value = val; break;
+            case 'do-generate': this.doGenerate(document.getElementById('topic-input').value, false); break;
+            case 'do-random': this.doGenerate(CONFIG.RANDOM_CATEGORIES[Math.floor(Math.random() * CONFIG.RANDOM_CATEGORIES.length)], true); break;
+            
+            case 'set-diff': this.store.set({ difficulty: parseInt(val) }); break;
+            case 'set-theme': this.store.set({ theme: val }); StorageManager.save({ theme: val }); break;
+            case 'set-speed': this.store.set({ playbackSpeed: parseFloat(val) }); StorageManager.save({ playbackSpeed: parseFloat(val) }); break;
+            case 'set-font': this.store.set({ fontSize: s.fontSize + parseInt(val) }); StorageManager.save({ fontSize: s.fontSize + parseInt(val) }); break;
+            case 'save-api': 
+              const key = document.getElementById('api-key-input').value.trim();
+              this.store.set({ apiKey: key }); this.api.apiKey = key; StorageManager.save({ apiKey: key });
+              this.closeDrawer(); this.showToast('配置已更新'); break;
+
+            case 'flip-card': this.store.set({ isCardFlipped: !s.isCardFlipped }); break;
+            case 'next-card': if(s.currentCardIndex < s.savedWords.length - 1) this.store.set({ currentCardIndex: s.currentCardIndex + 1, isCardFlipped: false }); break;
+            case 'prev-card': if(s.currentCardIndex > 0) this.store.set({ currentCardIndex: s.currentCardIndex - 1, isCardFlipped: false }); break;
+            case 'remove-card': this.toggleSave(val); if(s.currentCardIndex >= this.store.get().savedWords.length) this.store.set({ currentCardIndex: Math.max(0, s.currentCardIndex - 1), isCardFlipped: false }); break;
+          }
+        });
+      }
+
+      render(state) {
+        document.body.dataset.theme = state.theme;
+
+        this.els.flashcardBtn.innerHTML = state.isFlashcardMode ? '📖 退出闪卡' : `🗂 生词袋 <span class="bg-[var(--accent)] text-[var(--bg-base)] px-1.5 py-0.5 rounded text-[10px]">${state.savedWords.length}</span>`;
+
+        if (state.isFlashcardMode) {
+          this.els.readerArea.classList.add('hidden');
+          this.els.flashcardArea.classList.remove('hidden');
+          this.els.bottomBar.classList.add('hidden');
+          this.renderFlashcards(state);
+        } else {
+          this.els.readerArea.classList.remove('hidden');
+          this.els.flashcardArea.classList.add('hidden');
+          this.els.bottomBar.classList.remove('hidden');
+          this.renderArticle(state);
+        }
+
+        this.els.btnPlay.innerHTML = this.queue.playing ? '⏹' : '🔊';
+        this.els.btnPlay.style.transform = this.queue.playing ? 'scale(0.9)' : 'scale(1)';
+        this.els.btnGenerate.style.opacity = state.loading ? '0.3' : '0.8';
+        this.els.btnGenerate.disabled = state.loading;
+
+        this.renderDrawer(state);
+      }
+
+      renderArticle(state) {
+        const area = this.els.readerArea;
+        if (state.loading) {
+          area.innerHTML = `<div class="flex flex-col items-center justify-center mt-32 opacity-50"><div class="w-8 h-8 border-4 border-[var(--accent)] border-t-transparent rounded-full animate-spin mb-4"></div><p class="font-bold tracking-widest text-xs uppercase">${state.loadingText || 'AI 正在编撰语篇...'}</p></div>`;
+          return;
+        }
+
+        const art = state.article;
+        area.innerHTML = '';
+        this.chunkMap.clear();
+
+        area.appendChild(h('div', { className: 'mb-8' }, [
+          h('div', { className: 'flex items-center gap-2 mb-4' }, [
+            h('span', { className: 'text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded surface-card opacity-80' }, [art.difficultyLabel || `Level ${state.difficulty}`]),
+            h('span', { className: 'text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded surface-card opacity-80' }, ['Giọng Hà Nội'])
+          ]),
+          h('h2', { className: 'text-3xl font-serif font-black leading-tight text-[var(--accent)]', lang: 'vi' }, [art.title || '未命名文章'])
+        ]));
+
+        const content = h('div', { className: 'vn-text', style: { fontSize: `${state.fontSize}px` } });
+        let sIdx = 0;
+        const paragraphs = Array.isArray(art.paragraphs) ? art.paragraphs : [];
+        
+        paragraphs.forEach(p => {
+          const para = h('p', { className: 'mb-8 text-justify flex flex-wrap gap-x-1.5 gap-y-2', lang: 'vi' });
+          const sentences = Array.isArray(p.sentences) ? p.sentences : [];
+          
+          sentences.forEach(s => {
+            const sWrap = h('span', { className: `inline-flex flex-wrap transition-colors duration-300 rounded ${state.currentSentenceIndex === sIdx ? 'bg-[var(--accent-light)]' : ''}` });
+            const chunks = Array.isArray(s.chunks) ? s.chunks : [];
+            
+            chunks.forEach(c => {
+              if (!c || !c.vietnamese) return;
+              this.chunkMap.set(c.vietnamese, c);
+              const isActive = state.selectedChunk?.vietnamese === c.vietnamese;
+              const clz = `cursor-pointer transition-all duration-200 border-b border-dotted border-[var(--text-secondary)] px-1 mx-0.5 btn-press ${isActive ? 'chunk-active' : ''}`;
+              sWrap.appendChild(h('span', { className: clz, 'data-action': 'select-chunk', 'data-val': c.vietnamese }, [c.vietnamese]));
+            });
+            
+            sWrap.appendChild(document.createTextNode(' '));
+            para.appendChild(sWrap);
+            sIdx++;
+          });
+          content.appendChild(para);
+        });
+        
+        area.appendChild(content);
+        area.appendChild(h('div', { className: 'h-12' }));
+      }
+
+      renderFlashcards(state) {
+        const area = this.els.flashcardArea;
+        const cards = state.savedWords;
+        area.innerHTML = '';
+
+        if (cards.length === 0) {
+          area.innerHTML = `<div class="text-center opacity-40 mt-32"><div class="text-5xl mb-4">📭</div><p class="font-bold">生词袋为空</p></div>`;
+          return;
+        }
+
+        const c = cards[state.currentCardIndex];
+        if (!c) return;
+        
+        const isFlipped = state.isCardFlipped;
+
+        const face = isFlipped ? 
+          h('div', { className: 'flex-1 flex flex-col items-center justify-center text-center w-full' }, [
+            h('span', { className: 'text-[10px] font-bold uppercase tracking-widest opacity-40 mb-6' }, ['解析']),
+            h('h3', { className: 'text-3xl font-bold text-[var(--accent)] mb-4' }, [c.chinese || '']),
+            h('div', { className: 'surface-card px-4 py-2 rounded-xl text-sm opacity-80 mb-6 inline-block' }, [c.grammar || '']),
+            h('p', { className: 'text-xs opacity-60 italic px-4 leading-relaxed' }, [c.pronunciationTip || ''])
+          ]) : 
+          h('div', { className: 'flex-1 flex flex-col items-center justify-center text-center w-full' }, [
+            h('span', { className: 'text-[10px] font-bold uppercase tracking-widest opacity-40 mb-6' }, ['Tiếng Việt']),
+            h('h2', { className: 'text-4xl font-serif font-black mb-8 leading-tight', lang: 'vi' }, [c.vietnamese || '']),
+            h('button', { className: 'surface-card px-6 py-3 rounded-full font-bold flex items-center gap-2 btn-press', 'data-action': 'play-text', 'data-val': c.vietnamese }, ['🔊 真人发音'])
+          ]);
+
+        const deck = h('div', { className: 'w-full flex flex-col items-center gap-8 px-2' }, [
+          h('div', { className: 'w-full aspect-[3/4] relative perspective-1000' }, [
+            h('div', { className: 'w-full h-full surface-card rounded-[32px] p-8 flex flex-col shadow-float cursor-pointer btn-press animate-flip', 'data-action': 'flip-card' }, [ face ])
+          ]),
+          h('div', { className: 'flex items-center justify-between w-full px-6' }, [
+            h('button', { className: `w-14 h-14 rounded-full surface-card flex items-center justify-center text-xl btn-press ${state.currentCardIndex===0?'opacity-30':''}`, 'data-action': 'prev-card' }, ['◀']),
+            h('span', { className: 'font-bold text-sm opacity-50 tracking-widest' }, [`${state.currentCardIndex + 1} / ${cards.length}`]),
+            h('button', { className: `w-14 h-14 rounded-full surface-card flex items-center justify-center text-xl btn-press ${state.currentCardIndex===cards.length-1?'opacity-30':''}`, 'data-action': 'next-card' }, ['▶'])
+          ]),
+          h('button', { className: 'text-xs font-bold text-rose-500 opacity-60 btn-press mt-4 px-4 py-2', 'data-action': 'remove-card', 'data-val': c.vietnamese }, ['移出生词袋'])
+        ]);
+        area.appendChild(deck);
+      }
+
+      renderDrawer(state) {
+        const type = state.drawerState;
+        const ov = this.els.overlay;
+        const dr = this.els.drawerContent;
+
+        if (!type) {
+          dr.style.transform = 'translateY(100%)';
+          ov.style.opacity = '0';
+          setTimeout(() => {
+            if (!this.store.get().drawerState) {
+              ov.classList.add('hidden');
+              dr.innerHTML = '';
+            }
+          }, 300);
+          return;
+        }
+
+        ov.classList.remove('hidden');
+        void ov.offsetWidth; 
+        ov.style.opacity = '1';
+        dr.style.transform = 'translateY(0)';
+        dr.innerHTML = '';
+
+        dr.appendChild(h('div', { className: 'w-12 h-1.5 rounded-full surface-card mx-auto mb-6 opacity-50' }));
+
+        if (type === 'chunk' && state.selectedChunk) {
+          const c = state.selectedChunk;
+          const isSaved = state.savedWords.some(w => w.vietnamese === c.vietnamese);
+          
+          dr.appendChild(h('div', { className: 'flex justify-between items-start mb-6 gap-4' }, [
+            h('h3', { className: 'text-3xl font-serif font-black text-[var(--accent)] leading-tight', lang: 'vi' }, [c.vietnamese || '']),
+            h('button', { className: `w-12 h-12 rounded-full shrink-0 flex items-center justify-center text-xl surface-card btn-press ${isSaved?'text-rose-500':'opacity-60'}`, 'data-action': 'toggle-save', 'data-val': c.vietnamese }, [isSaved ? '❤️' : '🤍'])
+          ]));
+
+          dr.appendChild(h('div', { className: 'space-y-4' }, [
+            h('button', { className: 'w-full py-4 rounded-2xl font-bold flex items-center justify-center gap-2 btn-press mb-2', style: { backgroundColor: 'var(--accent)', color: 'var(--bg-base)' }, 'data-action': 'play-text', 'data-val': c.vietnamese }, ['🔊 聆听发音']),
+            this._infoBlock('直译', c.chinese || '-', 'text-lg font-bold'),
+            this._infoBlock('结构', c.grammar || '-'),
+            this._infoBlock('声调', c.pronunciationTip || '-', 'text-[var(--accent)] font-medium')
+          ]));
+        } 
+        
+        else if (type === 'generate') {
+          dr.appendChild(h('h3', { className: 'font-bold text-xl mb-6' }, ['探索新语篇']));
+          
+          const inputWrap = h('div', { className: 'flex p-1 rounded-2xl surface-card mb-6' }, [
+            h('input', { id: 'topic-input', className: 'flex-1 bg-transparent px-4 py-3 outline-none font-medium', placeholder: '输入场景，如：买法棍...' }),
+            h('button', { className: 'w-12 rounded-xl flex items-center justify-center text-xl opacity-60 btn-press hover:bg-black/5', 'data-action': 'do-random' }, ['🎲'])
+          ]);
+
+          const tags = h('div', { className: 'flex flex-wrap gap-2 mb-8' });
+          CONFIG.SUGGESTED_TOPICS.forEach(t => {
+            tags.appendChild(h('button', { className: 'px-4 py-2 rounded-xl surface-card text-xs font-bold btn-press', 'data-action': 'set-topic', 'data-val': t.label }, [`${t.emoji} ${t.label}`]));
+          });
+
+          dr.appendChild(inputWrap);
+          dr.appendChild(tags);
+          dr.appendChild(h('button', { className: 'w-full py-4 rounded-2xl font-bold text-white btn-press', style: { backgroundColor: 'var(--accent)' }, 'data-action': 'do-generate' }, ['立即生成阅读']));
+        }
+
+        else if (type === 'settings') {
+          const s = this.store.get();
+          dr.appendChild(h('h3', { className: 'font-bold text-xl mb-6' }, ['偏好与设置']));
+          
+          dr.appendChild(h('div', { className: 'space-y-6' }, [
+            this._ctrlRow('视觉主题', ['cream', 'dark', 'clean'].map(t => h('button', { className: `px-4 py-2 rounded-xl text-xs font-bold uppercase transition-all ${s.theme===t?'surface-card shadow-md':'opacity-40'}`, 'data-action': 'set-theme', 'data-val': t }, [t]))),
+            this._ctrlRow('文章难度', [1,2,3,4,5].map(d => h('button', { className: `w-10 h-10 rounded-xl font-bold flex items-center justify-center ${s.difficulty===d?'surface-card shadow-md':'opacity-40'}`, 'data-action': 'set-diff', 'data-val': d }, [d]))),
+            this._ctrlRow('字号调整', [
+              h('button', { className: 'w-12 h-10 surface-card rounded-xl font-bold', 'data-action': 'set-font', 'data-val': -2 }, ['A-']),
+              h('span', { className: 'font-bold text-sm w-8 text-center' }, [s.fontSize]),
+              h('button', { className: 'w-12 h-10 surface-card rounded-xl font-bold', 'data-action': 'set-font', 'data-val': 2 }, ['A+'])
+            ]),
+            this._ctrlRow('朗读语速', [0.75, 1.0, 1.25].map(spd => h('button', { className: `px-4 py-2 rounded-xl text-xs font-bold ${s.playbackSpeed===spd?'surface-card shadow-md':'opacity-40'}`, 'data-action': 'set-speed', 'data-val': spd }, [`${spd}x`]))),
+            h('div', { className: 'pt-4 border-t border-[var(--border-subtle)]' }, [
+              h('label', { className: 'text-xs font-bold opacity-40 mb-2 block uppercase tracking-wider' }, ['Gemini API Key']),
+              h('div', { className: 'flex gap-2' }, [
+                h('input', { id: 'api-key-input', type: 'password', value: s.apiKey, placeholder: '在此配置以使用生成功能', className: 'flex-1 surface-card rounded-xl px-4 py-3 outline-none text-sm' }),
+                h('button', { className: 'px-6 rounded-xl font-bold text-white', style: { backgroundColor: 'var(--accent)' }, 'data-action': 'save-api' }, ['保存'])
+              ])
+            ])
+          ]));
+        }
+      }
+
+      _infoBlock(label, content, textClass = 'text-sm') {
+        return h('div', { className: 'surface-card p-4 rounded-2xl' }, [
+          h('span', { className: 'text-[10px] uppercase font-bold tracking-widest opacity-40 block mb-2' }, [label]),
+          h('p', { className: `leading-relaxed ${textClass}` }, [content])
+        ]);
+      }
+
+      _ctrlRow(label, els) {
+        return h('div', { className: 'flex items-center justify-between' }, [
+          h('span', { className: 'text-sm font-bold opacity-60' }, [label]),
+          h('div', { className: 'flex items-center gap-2' }, els)
+        ]);
+      }
+
+      closeDrawer() { this.store.set({ drawerState: null }); }
+
+      togglePlay() {
+        if (this.queue.playing) { this.queue.stop(); this.store.set({ currentSentenceIndex: -1 }); return; }
+        const s = this.store.get();
+        if (!s.article?.paragraphs) return;
+        const txts = [];
+        s.article.paragraphs.forEach(p => (p.sentences || []).forEach(sn => {
+          const t = (sn.chunks || []).map(c => c.vietnamese).join(' ').trim();
+          if (t) txts.push(t);
+        }));
+        if (txts.length) this.queue.start(txts, s.playbackSpeed);
+      }
+
+      toggleSave(vn) {
+        const s = this.store.get();
+        const chunk = this.chunkMap.get(vn) || s.savedWords.find(w => w.vietnamese === vn);
+        if (!chunk) return;
+        
+        let words = [...s.savedWords];
+        const idx = words.findIndex(w => w.vietnamese === vn);
+        if (idx > -1) { words.splice(idx, 1); this.showToast('已移除'); }
+        else { words.push(chunk); this.showToast('❤️ 已收录'); }
+        
+        this.store.set({ savedWords: words });
+        StorageManager.save({ savedWords: words });
+      }
+
+      async doGenerate(topic, isRandom) {
+        const s = this.store.get();
+        
+        if (s.loading) {
+          this.showToast('生成进行中，请稍候...');
+          return;
+        }
+        
+        if (!s.apiKey) { this.showToast('需配置 API Key'); this.store.set({ drawerState: 'settings' }); return; }
+        if (!topic) return;
+
+        this.closeDrawer();
+        this.queue.stop();
+        this.store.set({ loading: true, selectedChunk: null, currentSentenceIndex: -1, loadingText: 'AI 正在编撰语篇...' });
+
+        try {
+          const res = await this.api.generate(
+            topic, 
+            s.difficulty,
+            (attempt, max, delay, reason) => {
+              this.store.set({ loadingText: `${reason}，第 ${attempt}/${max} 次重试...` });
+            }
+          );
+          this.store.set({ article: res, loading: false, loadingText: '' });
+          this.showToast('生成成功');
+        } catch (e) {
+          this.store.set({ loading: false, loadingText: '' });
+          console.error("Generate error:", e);
+          if (e.name !== 'AbortError') {
+            if (e.isClientRateLimit) {
+              this.showToast(e.message); 
+            } else if (e.status === 429) {
+              this.showToast('API 速率限制（Tier 1 配额较低），请等待 30 秒后再试');
+            } else if (e.status === 503) {
+              this.showToast('模型过载，请稍后重试');
+            } else {
+              this.showToast(`生成失败: ${e.message}`);
+            }
+          }
+        }
+      }
+
+      showToast(msg) {
+        const t = this.els.toast;
+        t.innerHTML = escapeHtml(msg);
+        t.style.transform = 'translate(-50%, 0)';
+        t.style.opacity = '1';
+        setTimeout(() => { t.style.transform = 'translate(-50%, -20px)'; t.style.opacity = '0'; }, 2500);
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => window.app = new App());
+  </script>
+</body>
+</html>
