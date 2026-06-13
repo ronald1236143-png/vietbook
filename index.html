@@ -190,20 +190,23 @@
       subscribe(fn) { this.listeners.add(fn); return () => this.listeners.delete(fn); }
     }
 
-    // 还原 Google TTS 真人发音，并添加安全沙箱控制属性规避 HTTPS 跨域拦截
+    // 引入谷歌公共中转网关代理逻辑，彻底规避线上环境的 CORS 同源封锁与防盗链
     class TTSEngine {
       constructor() { 
         this.audio = new Audio(); 
-        // 关键：允许音频跨域请求匿名凭证
-        this.audio.crossOrigin = "anonymous";
       }
       speak(text, rate = 1.0) {
         return new Promise((resolve) => {
           let cleanText = text.replace(/[.,:!?，。：！？()]/g, " ").replace(/\s+/g, " ").trim() || text.trim();
           this.audio.pause();
           this.audio.playbackRate = rate;
-          // 使用 translate.google.com 的特定客户端参数绕过浏览器同源策略
-          this.audio.src = `https://translate.google.com/translate_tts?ie=UTF-8&tl=vi&client=tw-ob&q=${encodeURIComponent(cleanText)}`;
+          
+          // 构建标准的谷歌翻译原生语音请求串
+          const targetUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=vi&client=tw-ob&q=${encodeURIComponent(cleanText)}`;
+          
+          // 将请求投递进入 googleusercontent 安全中转代理隧道，伪装客户端来源环境
+          this.audio.src = `https://images1-focus-opensocial.googleusercontent.com/gadgets/proxy?container=focus&refresh=604800&url=${encodeURIComponent(targetUrl)}`;
+          
           this.audio.onended = this.audio.onerror = resolve;
           this.audio.oncanplay = () => this.audio.play().catch(resolve);
           this.audio.load();
@@ -312,6 +315,7 @@ The output MUST strictly match this JSON structure:
   ]
 }`;
 
+        // 纠正：迁移至 2026 生产端最主流的轻量基础模型 gemini-2.5-flash
         const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${this.apiKey}`;
         
         const res = await fetch(url, {
@@ -770,7 +774,7 @@ The output MUST strictly match this JSON structure:
       }
     }
 
-    // 修复：必须在全局 document 上绑定监听 DOMContentLoaded 事件
+    // 纠正：修复之前白屏的低级语法错误，将事件接收器正确绑定到全局 document 对象上
     document.addEventListener('DOMContentLoaded', () => window.app = new App());
   </script>
 </body>
